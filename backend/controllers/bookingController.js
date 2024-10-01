@@ -108,6 +108,10 @@ exports.getUserBookings = async (req, res) => {
 };
 
 exports.getETicket = async (req, res) => {
+  console.log("getETicket function called");
+  console.log("Booking reference:", req.params.bookingReference);
+  console.log("Request headers:", req.headers);
+  
   try {
     const { bookingReference } = req.params;
     const booking = await Booking.findOne({ bookingReference }).populate(
@@ -115,67 +119,99 @@ exports.getETicket = async (req, res) => {
     );
 
     if (!booking) {
+      console.log("Booking not found");
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    // Set the response headers for a PDF file
+    console.log("Booking found:", booking);
+
+    // Create a new PDF document
+    const doc = new PDFDocument({ margin: 50 });
+
+    // Set response headers
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename=${bookingReference}_e_ticket.pdf`
     );
 
-    // Create a new PDF document
-    const doc = new PDFDocument();
-
-    // Pipe the PDF into the response
+    // Pipe the PDF directly to the response
     doc.pipe(res);
 
-    // Add ticket details to the PDF
-    doc.fontSize(24).text("E-Ticket", { align: "center" });
-    doc.fontSize(18).text(`Event: ${booking.event.name}`, { align: "left" });
-    doc.text(`Date: ${booking.event.date}`, { align: "left" });
-    doc.text(`Location: ${booking.event.location}`, { align: "left" });
-    doc.moveDown();
-
+    // Add content to the PDF
     doc
-      .fontSize(16)
-      .text(`Booking Reference: ${bookingReference}`, { align: "left" });
-    doc.text(`Seats: ${booking.seats.join(", ")}`, { align: "left" });
-    doc.text(`Total Amount: $${booking.totalAmount}`, { align: "left" });
-
-    // Signature line
+      .font("Helvetica-Bold")
+      .fontSize(24)
+      .text("E-Ticket", { align: "center" });
     doc.moveDown();
-    doc.text("Thank you for your purchase!", { align: "center" });
+    doc.font("Helvetica").fontSize(14);
 
-    // Finalize the PDF and end the document
+    doc.text(`Event: ${booking.event.name}`);
+    doc.text(`Date: ${new Date(booking.event.date).toLocaleDateString()}`);
+    doc.moveDown();
+
+    doc.text(`Booking Reference: ${bookingReference}`);
+    doc.text(`Seats: ${booking.seats.join(", ")}`);
+    doc.text(`Total Amount: $${booking.totalAmount.toFixed(2)}`);
+
+    doc.moveDown();
+    doc
+      .font("Helvetica-Oblique")
+      .text("Thank you for your purchase!", { align: "center" });
+
+    // Add a border to the page
+    doc.rect(20, 20, doc.page.width - 40, doc.page.height - 40).stroke();
+
+    // Finalize the PDF and end the stream
     doc.end();
+
+    console.log("PDF generation completed successfully");
   } catch (error) {
     console.error("Error generating e-ticket:", error);
-    res.status(500).json({ message: "Failed to generate e-ticket" });
+    res
+      .status(500)
+      .json({ message: "Failed to generate e-ticket", error: error.message });
   }
 };
 
 
-exports.downloadETicket = async (req, res) => {
-  const { bookingReference } = req.params;
-  const filePath = path.join(
-    __dirname,
-    "..",
-    "tickets",
-    `${bookingReference}_e_ticket.pdf`
-  );
+exports.deleteBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
 
-  // Check if the file exists on the server
-  if (fs.existsSync(filePath)) {
-    // Send the file as a download
-    res.download(filePath, `${bookingReference}_e_ticket.pdf`, (err) => {
-      if (err) {
-        console.error("Error downloading file:", err);
-        res.status(500).json({ message: "Failed to download e-ticket" });
-      }
-    });
-  } else {
-    res.status(404).json({ message: "E-ticket not found" });
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    // Check if the user is authorized to delete this booking
+    if (booking.user.toString() !== req.user.id) {
+      return res.status(401).json({ message: "User not authorized" });
+    }
+
+    // You might want to add additional checks here, such as:
+    // - Is the event date in the future?
+    // - Is it within a cancellation window?
+
+    // Update the event to free up the seats
+    const event = await Event.findById(booking.event);
+    if (event) {
+      event.availableSeats += booking.seats.length;
+      event.bookedSeats = event.bookedSeats.filter(
+        (seat) => !booking.seats.includes(seat)
+      );
+      await event.save();
+    }
+
+    // Delete the booking
+    await Booking.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "Booking cancelled successfully" });
+  } catch (error) {
+    console.error("Error in deleteBooking:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+
+
+

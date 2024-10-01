@@ -73,4 +73,15 @@ export const loginUser = async (email, password) => {
   }
 };
 
+export const deleteBooking = async (bookingId) => {
+  try {
+    const response = await api.delete(`/bookings/${bookingId}`);
+    console.log("Booking deleted successfully:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting booking:", error.response || error);
+    throw error;
+  }
+};
+
 export default api;

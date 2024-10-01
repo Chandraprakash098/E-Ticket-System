@@ -53,7 +53,7 @@ function Checkout({ eventId, seats, totalAmount, setBookedSeats }) {
         alert("Booking successful!");
         setBookedSeats((prev) => [...prev, ...seats]); // Update bookedSeats after successful payment
         setSuccess(true);
-        navigate(`/`); // Redirect to confirmation page
+        navigate(`/profile`); // Redirect to confirmation page
       } else {
         throw new Error("Payment not completed");
       }

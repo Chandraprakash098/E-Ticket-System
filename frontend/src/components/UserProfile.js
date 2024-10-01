@@ -38,83 +38,121 @@ function UserProfile() {
 
   const downloadETicket = async (bookingReference) => {
     try {
-      const response = await fetch(`/api/bookings/ticket/${bookingReference}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      console.log(
+        "Attempting to download e-ticket for booking:",
+        bookingReference
+      );
+      const response = await fetch(
+        `http://localhost:5000/api/bookings/ticket/${bookingReference}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `e-ticket_${bookingReference}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `${bookingReference}_e_ticket.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error downloading e-ticket:", error);
+      alert(`Failed to download the e-ticket: ${error.message}`);
     }
   };
 
   if (!profile) return <div className="text-center text-2xl">Loading...</div>;
 
   return (
-    <div className="bg-gradient-to-r from-indigo-500 to-blue-600 min-h-screen flex items-center justify-center">
-      <div className="max-w-2xl w-full p-6 bg-white rounded-lg shadow-2xl ring-1 ring-gray-300">
-        <h2 className="text-4xl font-extrabold mb-6 text-center text-gray-800">
-          User Profile
-        </h2>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="mb-4">
-            <label htmlFor="name" className="block mb-2 text-lg text-gray-700">
-              Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300"
-              required
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block mb-2 text-lg text-gray-700">Email</label>
-            <p className="bg-gray-100 p-3 border border-gray-300 rounded-lg text-gray-800">
-              {profile.email}
-            </p>
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-300 transform hover:scale-105 focus:outline-none shadow-lg"
-          >
-            Update Profile
-          </button>
-        </form>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-lg shadow-xl overflow-hidden">
+          <div className="md:flex">
+            {/* Profile Section */}
+            <div className="md:w-1/3 p-8 bg-gray-50">
+              <h2 className="text-3xl font-extrabold text-gray-900 mb-6">
+                User Profile
+              </h2>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label
+                    htmlFor="name"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Email
+                  </label>
+                  <p className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-gray-100 rounded-md shadow-sm text-gray-700 sm:text-sm">
+                    {profile.email}
+                  </p>
+                </div>
+                <button
+                  type="submit"
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Update Profile
+                </button>
+              </form>
+            </div>
 
-        <h2 className="text-4xl font-extrabold mt-8 mb-4 text-center text-gray-800">
-          My Bookings
-        </h2>
-        <ul className="space-y-4">
-          {bookings.map((booking) => (
-            <li
-              key={booking.bookingReference}
-              className="flex justify-between items-center bg-purple-50 p-4 rounded-lg shadow-lg transition duration-300 transform hover:scale-105"
-            >
-              <span className="text-lg text-gray-700 font-semibold">
-                Event: {booking.event.name}
-              </span>
-              <button
-                onClick={() => downloadETicket(booking.bookingReference)}
-                className="bg-green-500 text-white px-4 py-2 rounded-lg transition duration-300 hover:bg-green-400 focus:outline-none shadow-md"
-              >
-                Download E-Ticket
-              </button>
-            </li>
-          ))}
-        </ul>
+            {/* Bookings Section */}
+            <div className="md:w-2/3 p-8">
+              <h2 className="text-3xl font-extrabold text-gray-900 mb-6">
+                My Bookings
+              </h2>
+              <div className="space-y-4">
+                {bookings.map((booking) => (
+                  <div
+                    key={booking.bookingReference}
+                    className="bg-white p-6 rounded-lg shadow-md border border-gray-200 transition duration-300 hover:shadow-lg"
+                  >
+                    <div className="flex justify-between items-center flex-wrap">
+                      <div className="mb-2 sm:mb-0">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {booking.event.name}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Date:{" "}
+                          {new Date(booking.event.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() =>
+                          downloadETicket(booking.bookingReference)
+                        }
+                        className="mt-2 sm:mt-0 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+                      >
+                        Download E-Ticket
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
