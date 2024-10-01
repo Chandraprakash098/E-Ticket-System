@@ -19,6 +19,7 @@ exports.createBooking = async (req, res) => {
   try {
     const { eventId, seats, token } = req.body;
     const userId = req.user.id;
+    const userEmail = req.user.email;
 
     const event = await Event.findById(eventId);
     if (!event) {
@@ -72,6 +73,29 @@ exports.createBooking = async (req, res) => {
       status: "confirmed", // Set the initial status as confirmed
     });
 
+    await booking.populate("event");
+
+    // Generate E-Ticket PDF
+    const pdfBuffer = await generateETicketBuffer(booking);
+
+    // Send email with e-ticket attached
+    const subject = "Booking Successful - Your E-Ticket";
+    const text = `Your booking for ${event.name} is confirmed. Please find your e-ticket attached.`;
+
+    try {
+      await sendEmail(userEmail, subject, text, [
+        {
+          filename: `${bookingReference}_e_ticket.pdf`,
+          content: pdfBuffer, // Attach the generated PDF buffer
+          contentType: "application/pdf",
+        },
+      ]);
+
+      console.log("Email with e-ticket sent successfully.");
+    } catch (error) {
+      console.error("Error sending email with e-ticket:", error);
+    }
+
     // Send back the client_secret for frontend confirmation
     res.status(201).json({
       clientSecret: paymentIntent.client_secret,
@@ -82,6 +106,46 @@ exports.createBooking = async (req, res) => {
     console.error("Error in createBooking:", error);
     res.status(500).json({ message: "Payment intent creation failed" });
   }
+};
+
+const generateETicketBuffer = async (booking) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50 });
+      let buffers = [];
+
+      doc.on("data", buffers.push.bind(buffers));
+      doc.on("end", () => {
+        const pdfBuffer = Buffer.concat(buffers);
+        resolve(pdfBuffer); // Resolve with the PDF data in memory
+      });
+
+
+      // Add content to the PDF
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(24)
+        .text("E-Ticket", { align: "center" });
+      doc.moveDown();
+      doc.font("Helvetica").fontSize(14);
+      doc.text(`Event: ${booking.event.name}`);
+      doc.text(`Date: ${new Date(booking.event.date).toLocaleDateString()}`);
+      doc.moveDown();
+      doc.text(`Booking Reference: ${booking.bookingReference}`);
+      doc.text(`Seats: ${booking.seats.join(", ")}`);
+      doc.text(`Total Amount: $${booking.totalAmount.toFixed(2)}`);
+      doc.moveDown();
+      doc
+        .font("Helvetica-Oblique")
+        .text("Thank you for your purchase!", { align: "center" });
+      doc.rect(20, 20, doc.page.width - 40, doc.page.height - 40).stroke();
+
+      // Finalize the PDF and end the stream
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
 };
 
 exports.getBookingByReference = async (req, res) => {
