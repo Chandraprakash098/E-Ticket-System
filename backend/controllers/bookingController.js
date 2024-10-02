@@ -120,7 +120,6 @@ const generateETicketBuffer = async (booking) => {
         resolve(pdfBuffer); // Resolve with the PDF data in memory
       });
 
-
       // Add content to the PDF
       doc
         .font("Helvetica-Bold")
@@ -175,7 +174,7 @@ exports.getETicket = async (req, res) => {
   console.log("getETicket function called");
   console.log("Booking reference:", req.params.bookingReference);
   console.log("Request headers:", req.headers);
-  
+
   try {
     const { bookingReference } = req.params;
     const booking = await Booking.findOne({ bookingReference }).populate(
@@ -238,7 +237,6 @@ exports.getETicket = async (req, res) => {
   }
 };
 
-
 exports.deleteBooking = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
@@ -275,7 +273,3 @@ exports.deleteBooking = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
-
-
-

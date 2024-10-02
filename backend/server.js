@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
+const path = require("path");
 const cors = require("cors");
 const authRoutes = require("./routes/authRoutes");
 const eventRoutes = require("./routes/eventRoutes");
@@ -19,7 +20,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 const app = express();
 
 // Middleware
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "../frontend/build")));
 app.use(cors({
    exposedHeaders: ['Content-Disposition'],}
 ));
@@ -49,7 +50,7 @@ app.use((req, res, next) => {
 
 // Serve React app for any unmatched routes
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
 });
 
 // Error handling middleware
